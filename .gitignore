@@ -3,3 +3,4 @@ default.sqlite
 venv/
 helpers/__init__.py
 helpers/__pycache__/
+output.wav
