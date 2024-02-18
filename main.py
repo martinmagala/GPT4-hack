@@ -8,14 +8,24 @@ from trulens_eval import TruChain, Feedback, OpenAI, Huggingface, Tru
 import streamlit as st
 from helpers.openai_utils import get_quiz_data
 from helpers.quiz_utils import string_to_list, get_randomized_options
-from helpers.toast_messages import get_random_toast
-
+from gtts import gTTS  # new import
+import base64
+from pathlib import Path
 hugs = Huggingface()
 openai = OpenAI()
 tru = Tru()
 
 # Load environment variables from .streamlit/secrets.toml
 os.environ["OPENAI_API_KEY"] = st.secrets["OPENAI_API_KEY"]
+
+
+def text_to_speech(text):
+    tts = gTTS(text=text, lang="en")
+    audio_bytes = tts.save("output.wav")
+    with open("output.wav", "rb") as audio_file:
+        base64_encoded_audio = base64.b64encode(audio_file.read()).decode('utf-8')
+    return base64_encoded_audio
+
 
 st.set_page_config(
         page_title="Mediterranean AI",
@@ -74,12 +84,10 @@ def Genarate_story():
     
     if "messages" not in st.session_state:
         st.session_state.messages = []
-
-    for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
     prompt = st.text_input("Something to add (optional)?")
+
     if st.button("GENERATE") :
+        st.session_state.messages = []
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
@@ -94,6 +102,21 @@ def Genarate_story():
             st.session_state.text =full_response
         st.session_state.messages.append(
             {"role": "assistant", "content": full_response})
+        base64_encoded_audio = text_to_speech(full_response)
+        with open("speaker.html", "r") as html_file:
+                html_content = html_file.read().replace("{{base64_encoded_audio}}", base64_encoded_audio)
+        st.markdown(html_content, unsafe_allow_html=True)
+
+
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+
+
+
+
+
+
         
     
         
