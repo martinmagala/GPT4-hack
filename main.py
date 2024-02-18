@@ -184,5 +184,5 @@ selected_page = st.sidebar.radio("Navigation", list(pages.keys()))
 pages[selected_page]()
 
 
-tru.run_dashboard()
+tru.run_dashboard(port=8500)
 
