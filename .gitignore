@@ -1,6 +1,7 @@
 .streamlit/secrets.toml
 default.sqlite
 venv/
+.venv/
 helpers/__init__.py
 helpers/__pycache__/
 output.wav
