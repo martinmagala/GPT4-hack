@@ -8,8 +8,11 @@ from trulens_eval import TruChain, Feedback, OpenAI, Huggingface, Tru
 import streamlit as st
 from helpers.openai_utils import get_quiz_data
 from helpers.quiz_utils import string_to_list, get_randomized_options
-from helpers.toast_messages import get_random_toast
-
+from gtts import gTTS  # new import
+import base64
+from pathlib import Path
+from openai import OpenAI as OP
+#from OpenAI import OpenAI 
 hugs = Huggingface()
 openai = OpenAI()
 tru = Tru()
@@ -17,33 +20,87 @@ tru = Tru()
 # Load environment variables from .streamlit/secrets.toml
 os.environ["OPENAI_API_KEY"] = st.secrets["OPENAI_API_KEY"]
 
+
+def text_to_speech(text):
+    tts = gTTS(text=text, lang="en")
+    audio_bytes = tts.save("output.wav")
+    with open("output.wav", "rb") as audio_file:
+        base64_encoded_audio = base64.b64encode(audio_file.read()).decode('utf-8')
+    return base64_encoded_audio
+
+
 st.set_page_config(
         page_title="Mediterranean AI",
         page_icon="🧠",
         layout="centered",
         initial_sidebar_state="collapsed"
     )
+def generate_image(prompt):
+    client = OP()
+    response = client.images.generate(
+        model="dall-e-2",
+        prompt=prompt,
+        size="1024x1024",
+        quality="standard",
+        n=1,
+    )
+    st.session_state.image_url = response.data[0].url
+    return st.session_state.image_url
 
 # Define your page functions
 def home_page():
     st.title("Home Page")
     st.write("Welcome to the home page!")
 
+with open('style.css') as f:
+        st.markdown('<style>{}</style>'.format(f.read()), unsafe_allow_html=True)
+
 def Genarate_story():
     # Streamlit frontend
 # Streamlit frontend
+
     st.title("Boost Your Comprehension")
 
     if "text" not in st.session_state:
         st.session_state.text = ""
+
+    if 'image_url' not in st.session_state:
+            st.session_state.image_url = ""
+
+    # Include external CSS file
+    st.markdown('<link rel="stylesheet" href="style.css">', unsafe_allow_html=True)
+    with open("./frozen.jpg", "rb") as img_file:
+        img_data = base64.b64encode(img_file.read()).decode("utf-8")
+    
+
+    # Display HTML content
+    st.markdown("""
+    <div class="area" >
+        <ul class="circles">
+            <li></li>
+            <li></li>
+            <li></li>
+            <li></li>
+            <li></li>
+            <li></li>
+            <li></li>
+            <li></li>
+            <li></li>
+            <li></li>
+        </ul>
+    </div >
+    """, unsafe_allow_html=True)
+
+        
     selected_values = st.multiselect("Select values", [
         "Honesty", "Courage", "Perseverance", "Humility", "Compassion", "Generosity",
         "Gratitude", "Forgiveness", "Loyalty", "Patience", "Respect", "Responsibility",
         "Tolerance", "Justice", "Fairness", "Caring", "Kindness", "Optimism", "Wisdom",
         "Trustworthiness"
     ])
+
     # Build LLM chain
-    template = """Write a creative, engaging story that brings the scene to life. Describe the characters, setting, and actions in a way that would captivate a young audience the story must contains this """+' '.join(selected_values) +"""
+    template = """Write a creative, engaging story that brings the scene to life. Describe the characters, setting, and actions in a way that would captivate a young audience the story must not exceed 200 words and contain these values """+' '.join(selected_values) +"""
             
             Human: {human_input}
             Chatbot:"""
@@ -74,32 +131,60 @@ def Genarate_story():
     
     if "messages" not in st.session_state:
         st.session_state.messages = []
-
-    for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
     prompt = st.text_input("Something to add (optional)?")
-    if st.button("GENERATE") :
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
-            st.markdown(prompt)
 
+    if st.button("Generate", type="primary"):
+         
+        st.session_state.messages = []
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        st.session_state.image_url = generate_image(prompt)
         with st.chat_message("assistant"):
             # Record with TruLens
             with chain_recorder as recording:
                 full_response = chain.run(prompt)
-            message_placeholder = st.empty()
-            message_placeholder.markdown(full_response + "▌")
-            message_placeholder.markdown(full_response)
+            st.markdown(
+        f"""
+        
+        <div class="styled-div">
+            <div class="styled-title">
+                <h1>The Story</h1>  
+            </div>
+            <img class="styled-img" src="{st.session_state.image_url}" alt="Frozen Image">
+            <div class="styled-p">
+                {full_response}
+            </div> 
+        </div>
+           
+           
+        """,
+        unsafe_allow_html=True
+    )
             st.session_state.text =full_response
         st.session_state.messages.append(
-            {"role": "assistant", "content": full_response})
-        
-    
-        
+            {"role": "assistant", "content": full_response})     
 def Quiz_page():
     st.title("Test Your Comprehension")
     OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
+    # Include external CSS file
+    st.markdown('<link rel="stylesheet" href="style.css">', unsafe_allow_html=True)
+
+    # Display HTML content
+    st.markdown("""
+    <div class="area" >
+        <ul class="circles">
+            <li></li>
+            <li></li>
+            <li></li>
+            <li></li>
+            <li></li>
+            <li></li>
+            <li></li>
+            <li></li>
+            <li></li>
+            <li></li>
+        </ul>
+    </div >
+    """, unsafe_allow_html=True)
     with st.form("user_input"):
         if 'text' not in st.session_state:
             st.session_state.text = ""
@@ -185,4 +270,3 @@ pages[selected_page]()
 
 
 tru.run_dashboard(port=8500)
-
