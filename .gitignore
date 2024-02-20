@@ -5,3 +5,5 @@ venv/
 helpers/__init__.py
 helpers/__pycache__/
 speech.mp3
+output.wav
+

@@ -12,7 +12,7 @@ from gtts import gTTS  # new import
 import base64
 from pathlib import Path
 from openai import OpenAI as OP
-#from OpenAI import OpenAI 
+
 hugs = Huggingface()
 openai = OpenAI()
 vopenai = OP()
@@ -135,6 +135,7 @@ def Genarate_story():
     if "messages" not in st.session_state:
         st.session_state.messages = []
     prompt = st.text_input("Something to add (optional)?")
+
 
     if st.button("Generate", type="primary"):
          
