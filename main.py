@@ -15,18 +15,21 @@ from openai import OpenAI as OP
 
 hugs = Huggingface()
 openai = OpenAI()
+vopenai = OP()
 tru = Tru()
 
 # Load environment variables from .streamlit/secrets.toml
 os.environ["OPENAI_API_KEY"] = st.secrets["OPENAI_API_KEY"]
 
 
-def text_to_speech(text):
-    tts = gTTS(text=text, lang="en")
-    audio_bytes = tts.save("output.wav")
-    with open("output.wav", "rb") as audio_file:
-        base64_encoded_audio = base64.b64encode(audio_file.read()).decode('utf-8')
-    return base64_encoded_audio
+def generate_speech(input_text):
+    speech_file_path = Path("speech.mp3")
+    response = vopenai.audio.speech.create(
+        model="tts-1",
+        voice="alloy",
+        input=input_text
+    )
+    response.stream_to_file(speech_file_path)
 
 
 st.set_page_config(
@@ -162,7 +165,12 @@ def Genarate_story():
     )
             st.session_state.text =full_response
         st.session_state.messages.append(
-            {"role": "assistant", "content": full_response})     
+            {"role": "assistant", "content": full_response})    
+        generate_speech(st.session_state.text)
+        st.success("Speech generated successfully!")
+        
+         # Display the audio file to the user
+        st.audio("speech.mp3", format="audio/mp3") 
 def Quiz_page():
     st.title("Test Your Comprehension")
     OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
