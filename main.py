@@ -8,11 +8,27 @@ from trulens_eval import TruChain, Feedback, OpenAI, Huggingface, Tru
 import streamlit as st
 from helpers.openai_utils import get_quiz_data
 from helpers.quiz_utils import string_to_list, get_randomized_options
-from gtts import gTTS  # new import
+import streamlit_antd_components as sac
 import base64
 from pathlib import Path
 from openai import OpenAI as OP
-import streamlit_antd_components as sac
+import base64
+from pathlib import Path
+import glob
+from PIL import Image
+import requests
+import json
+import re
+import time
+import uuid
+from io import BytesIO
+import numpy as np
+import pandas as pd
+from streamlit_drawable_canvas import st_canvas
+from svgpathtools import parse_path
+import io
+
+
 
 hugs = Huggingface()
 openai = OpenAI()
@@ -93,8 +109,11 @@ st.markdown("""
 # Define your page functions
 def home_page():
     st.session_state['b64_image'] =""
-    st.title("Home Page")
-    st.write("Welcome to the home page!") 
+    with open("./pic.png", "rb") as img_file:
+        img_back = base64.b64encode(img_file.read()).decode("utf-8")
+        # st.image(f'data:image/png;base64,{img_back}', use_column_width=False)
+        st.markdown(f"""<img class="back_img"  src="data:image/png;base64,{img_back}" alt="Frozen Image">""",unsafe_allow_html=True)
+    st.markdown("""<h1 class="Title">Welcome To CogniSmile</h1>""",unsafe_allow_html=True)
 
 
 
@@ -197,14 +216,15 @@ def Genarate_story():
         # st.audio("speech.mp3", format="audio/mp3") 
         ####################################################################################
 def Quiz_page():
+    if 'text' not in st.session_state:
+                st.session_state.text = ""
     if st.session_state.text != "":
         OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
     
         
         with st.form("user_input"):
             st.markdown('''<div class="pos_h1"><h1>Let's craft the Quiz</h1></div>''',unsafe_allow_html=True)
-            if 'text' not in st.session_state:
-                st.session_state.text = ""
+            
             
             story_text =st.session_state.text
             st.markdown(
@@ -286,21 +306,326 @@ def Quiz_page():
 def contact_page():
         st.title("Contact Page")
         st.write("Feel free to contact us.")
+
+
     
+def Creativity():
+    api_key=st.secrets["OPENAI_API_KEY"]
+    # Sidebar for API key input
+    # api_key = st.sidebar.text_input("Enter your API key", type="password")
+    # if not api_key:
+    #     api_key = os.getenv("OPENAI_API_KEY") or "YOUR_API_KEY"
 
-# # Create a dictionary to map page names to page functions
-# pages = {
-#     "Home": home_page,
-#     "Chat": Genarate_story,
-#     "Quiz": Quiz_page,
-#     "Contact": contact_page,
-# }
+    # Initialize the OpenAI client with the API Key provided by the user or from the environment
+    # client = OpenAI(api_key=api_key)
+    client = OP(api_key=os.getenv("OPENAI_API_KEY") or "YOUR_API_KEY")
+    st.title('AI Image Analyzer and Generator')
+    if 'button_id' not in st.session_state:
+            st.session_state.button_id = ""
+    button_id = st.session_state["button_id"]
+    
+    def png_export():
+        try:
+            Path("tmp/").mkdir()
+        except FileExistsError:
+            pass
 
-# # Create a sidebar with menu items
-# selected_page = st.sidebar.radio("Navigation", list(pages.keys()))
+        # Regular deletion of tmp files
+        # Hopefully callback makes this better
+        now = time.time()
+        N_HOURS_BEFORE_DELETION = 1
+        for f in Path("tmp/").glob("*.png"):
+            # st.write(f, os.stat(f).st_mtime, now)
+            if os.stat(f).st_mtime < now - N_HOURS_BEFORE_DELETION * 3600:
+                Path.unlink(f)
 
-# # Display the selected page
-# pages[selected_page]()
+        if st.session_state["button_id"] == "":
+            st.session_state["button_id"] = re.sub(
+                "\d+", "", str(uuid.uuid4()).replace("-", "")
+            )
+
+        
+        file_path = f"tmp/{button_id}.png"
+
+        custom_css = f""" 
+            <style>
+                #{button_id} {{
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    background-color: rgb(255, 255, 255);
+                    color: rgb(38, 39, 48);
+                    padding: .25rem .75rem;
+                    position: relative;
+                    text-decoration: none;
+                    border-radius: 4px;
+                    border-width: 1px;
+                    border-style: solid;
+                    border-color: rgb(230, 234, 241);
+                    border-image: initial;
+                }} 
+                #{button_id}:hover {{
+                    border-color: rgb(246, 51, 102);
+                    color: rgb(246, 51, 102);
+                }}
+                #{button_id}:active {{
+                    box-shadow: none;
+                    background-color: rgb(246, 51, 102);
+                    color: white;
+                    }}
+            </style> """
+        
+        drawing_mode = st.sidebar.selectbox(
+            "Drawing tool:",
+            ("freedraw", "line", "rect", "circle", "transform", "polygon", "point"),
+        )
+        stroke_width = st.sidebar.slider("Stroke width: ", 1, 25, 3)
+        if drawing_mode == "point":
+            point_display_radius = st.sidebar.slider("Point display radius: ", 1, 25, 3)
+        stroke_color = st.sidebar.color_picker("Stroke color hex: ")
+        bg_color = st.sidebar.color_picker("Background color hex: ", "#eee")
+           
+
+        data = st_canvas(update_streamlit=True, key="png_export",drawing_mode=drawing_mode,
+               point_display_radius=point_display_radius if drawing_mode == "point" else 0,stroke_color=stroke_color,
+               background_color=bg_color,stroke_width=stroke_width,height=400,width=800)
+        if data is not None and data.image_data is not None:
+            img_data = data.image_data
+
+            # Create a new image with white background
+            white_background = Image.new("RGBA", (data.image_data.shape[1], data.image_data.shape[0]), (255, 255, 255, 255))
+            white_background.paste(Image.fromarray(img_data.astype("uint8"), mode="RGBA"), (0, 0), mask=Image.fromarray(img_data.astype("uint8"), mode="RGBA"))
+
+            # Save the image with white background
+            white_background.save(file_path, "PNG")
+
+            buffered = BytesIO()
+            white_background.save(buffered, format="PNG")
+            img_data = buffered.getvalue()
+            try:
+                # some strings <-> bytes conversions necessary here
+                b64 = base64.b64encode(img_data).decode()
+            except AttributeError:
+                b64 = base64.b64encode(img_data).decode()
+
+            # dl_link = (
+            #     custom_css
+            #     + f'<a download="{file_path}" id="{button_id}" href="data:file/txt;base64,{b64}">Export PNG</a><br></br>'
+            # )
+            # st.markdown(dl_link, unsafe_allow_html=True)
+
+    def save_image(image_bytes, filename, output_dir="original_image"):
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+        file_path = os.path.join(output_dir, filename)
+        with open(file_path, 'wb') as image_file:
+            image_file.write(image_bytes)
+        st.write(f"Image saved to {file_path}")
+
+    def download_and_encode_image(image_input):
+        if image_input.startswith(('http://', 'https://')):
+            response = requests.get(image_input, timeout=10)
+            image_bytes = response.content
+            filename = image_input.split('/')[-1]
+        else:
+            with open(image_input, "rb") as image_file:
+                image_bytes = image_file.read()
+                filename = os.path.basename(image_input)
+
+        save_image(image_bytes, filename)  # Save the image to the local directory
+
+        # Use io.BytesIO to wrap the image data before passing it to PIL
+        image_io = io.BytesIO(image_bytes)
+        pil_image = Image.open(image_io)
+
+        # Convert the PIL image back to bytes
+        pil_image_bytes = io.BytesIO()
+        pil_image.save(pil_image_bytes, format='PNG')
+        pil_image_bytes = pil_image_bytes.getvalue()
+
+        return base64.b64encode(pil_image_bytes).decode('utf-8')
+
+
+    def get_image_analysis_streamlit(base64_image):
+        """Displays image analysis/description using GPT-4 Vision in Streamlit."""
+        try:
+            response = client.chat.completions.create(
+            model="gpt-4-vision-preview",
+            stream=True,
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": "describe this image as a prompt for a text to generate a title of a story for kids according to this image"},
+                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}},
+                    ],
+                }
+            ],
+            max_tokens=250,
+            )
+            
+            responses = ""
+            for chunk in response:
+                if chunk.choices[0].delta.content:
+                    print(chunk.choices[0].delta.content, end="", flush=True)
+                    responses += str(chunk.choices[0].delta.content)
+            print("\n" + "="*50 + "\nVision Response:\n" + "="*50)
+            print(responses.rstrip())
+            return responses.rstrip()
+        except Exception as e:
+            print(f"An error occurred during image analysis: {e}")
+            return None
+
+    def modify_description_streamlit(original_description):
+        """Allows users to modify the image description using a Streamlit text input."""
+        st.write(f"Original Description: {original_description}")
+        modification = st.text_input("How would you like to modify the image description? (e.g., 'add a hat, change the background, etc.'): ").strip()
+        if modification:
+            new_description = f"{original_description}, modified to include {modification}"
+        else:
+            new_description = original_description
+        return new_description
+
+
+    def generate_image_with_dalle_streamlit(prompt):
+        try:
+            print("\n" + "="*50 + "\nFinal Prompt Sent to DALL-E 3:\n" + "="*50)
+            print(prompt)
+            response = client.images.generate(
+                model="dall-e-3",
+                prompt=prompt,
+                size="1792x1024",
+                quality="standard",
+                response_format="b64_json",
+                n=1,
+            )
+            if response:
+                b64_data = response.data[0].b64_json
+                revised_prompt = response.data[0].revised_prompt
+                st.session_state['b64_image'] = b64_data  # Store in session for display
+                return b64_data, revised_prompt
+        except Exception as e:
+            st.error(f"Error generating image: {e}")
+            return None, None
+
+
+    def save_base64_image_streamlit(b64_data, original_name, output_dir="generated_images"):
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+
+        base_filename = os.path.splitext(os.path.basename(original_name))[0]
+        # Logic to create a unique filename
+        existing_files = glob.glob(os.path.join(output_dir, f"{base_filename}_generated_*.png"))
+        highest_num = 0
+        for f in existing_files:
+            try:
+                num = int(f.rsplit('_', 1)[-1].split('.')[0])
+                highest_num = max(highest_num, num)
+            except ValueError:
+                continue
+
+        new_num = highest_num + 1
+        new_filename = f"{base_filename}_generated_{new_num:02d}.png"
+        file_path = os.path.join(output_dir, new_filename)
+
+        img_data = base64.b64decode(b64_data)
+        with open(file_path, 'wb') as f:
+            f.write(img_data)
+        
+        st.success(f"Generated image saved as {new_filename}")
+
+
+    def show_image_gallery(directory="generated_images"):
+        if os.path.exists(directory):
+            images = os.listdir(directory)
+            for image in images:
+                # Use a combination of directory and image name to ensure the key is unique
+                unique_key = f"{directory}_{image}"
+                col1, col2 = st.columns([20, 1])  # Adjust the ratio as needed
+                with col1:  # Image display column
+                    image_path = os.path.join(directory, image)
+                    st.image(image_path, caption=image, use_column_width=True)
+                with col2:  # Deletion button column
+                    # Use the unique key for the button
+                    if st.button("X", key=unique_key):
+                        os.remove(image_path)  # Delete the image file
+                        st.rerun()  
+        
+
+    def clear_inputs():
+        # Explicitly clear the relevant session state keys
+        keys_to_clear = ['image_input', 'modification', 'last_image_input', 'original_description', 'process_image']
+        for key in keys_to_clear:
+            if key in st.session_state:
+                del st.session_state[key]
+        st.rerun()  # Force a rerun of the app to reset state
+    if "button_id" not in st.session_state:
+        st.session_state["button_id"] = ""
+    png_export()
+    # Initialize or reset session state keys
+    if 'image_input' not in st.session_state:
+        st.session_state['image_input'] = ""
+    if 'modification' not in st.session_state:
+        st.session_state['modification'] = ""
+    
+    st.session_state['image_input'] = st.text_input("Enter the path to a local image or an image URL or Autofill:", value=st.session_state['image_input'] )
+
+    #Input for image URL or path with session state management
+    if st.button("Autofill"):
+            st.session_state['image_input'] = f"tmp/{button_id}.png"
+    # if know this would work: st.session_state['text'] = autofill_value
+    else:
+        autofill_value = ""
+
+    # Process the image input if it's provided
+    if st.session_state['image_input']:
+        # Check if it's a new image input or the same as before
+        if 'last_image_input' not in st.session_state or st.session_state['last_image_input'] != st.session_state['image_input']:
+            base64_image = download_and_encode_image(st.session_state['image_input'])
+            original_description = get_image_analysis_streamlit(base64_image)
+            st.session_state['original_description'] = original_description
+            st.session_state['last_image_input'] = st.session_state['image_input']
+            st.session_state['modification'] = ""  # Reset modification input for new image
+
+        # Show original description to the user
+        if 'original_description' in st.session_state:
+            st.write(f"Your Vision : {st.session_state['original_description']}")
+        
+        # Modification text input
+        st.session_state['modification'] = st.text_input("Enter your description to add for Dalle here:", value=st.session_state['modification'])
+        if 'modification' in st.session_state and st.session_state['modification']:
+            # This ensures we only print when there's an actual modification provided.
+            print("\n" + "="*50 + "\nUser's Modification Input:\n" + "="*50)
+            print(st.session_state['modification'])
+
+        
+        # Generate modified image on button click
+        if st.button("Generate Modified Image"):
+            modified_description = f"{st.session_state['original_description']} {st.session_state['modification']}" if st.session_state['modification'] else st.session_state['original_description']
+            b64_data, revised_prompt = generate_image_with_dalle_streamlit(modified_description)
+            if b64_data:
+                img_data = base64.b64decode(b64_data)
+                st.image(img_data, caption="Generated Image", use_column_width=True)
+                save_base64_image_streamlit(b64_data, st.session_state['image_input'])
+            else:
+                st.error("Unable to generate modified image due to an error.")
+
+    # Clear button to reset inputs and state
+    if st.button("Clear & Start Over"):
+        clear_inputs()
+
+    st.title("Image Gallery")
+
+
+    # Expanders for viewing images in directories
+    with st.expander("View Original Images"):
+        show_image_gallery(directory="original_image")
+    # Display the image gallery with deletion options
+    with st.expander("View Generated Images"):
+        show_image_gallery(directory="generated_images")
+
+
+
 if 'current_tab' not in st.session_state:
     st.session_state.current_tab = 'Home'
 
@@ -318,21 +643,7 @@ with st.sidebar:
     sac.MenuItem('Home', icon='house-fill'),
     sac.MenuItem('Storyfy',icon='book-half'),
     sac.MenuItem('Quiz',icon='patch-question-fill'),
-    #
-    sac.MenuItem('products', icon='box-fill', children=[
-        sac.MenuItem('apple', icon='apple'),
-        sac.MenuItem('other', icon='pencil-fill', description='other items', children=[
-            sac.MenuItem('google', icon='google', description='item description'),
-            sac.MenuItem('gitlab', icon='gitlab'),
-            sac.MenuItem('wechat', icon='wechat'),
-        ]),
-    ]),
-    sac.MenuItem('disabled', disabled=True),
-    sac.MenuItem(type='divider'),
-    sac.MenuItem('link', type='group', children=[
-        sac.MenuItem('antd-menu', icon='heart-fill', href='https://ant.design/components/menu#menu'),
-        sac.MenuItem('bootstrap-icon', icon='bootstrap-fill', href='https://icons.getbootstrap.com/'),
-    ]),
+    sac.MenuItem('Creativity',icon='easel2-fill'),
     
 ], color='cyan', size='lg', open_all=True)
 if selected_tab != st.session_state.current_tab:
@@ -345,8 +656,9 @@ elif st.session_state.current_tab == 'Storyfy':
     Genarate_story()  
 elif st.session_state.current_tab == 'Quiz':
     Quiz_page()
-    
+elif st.session_state.current_tab == 'Creativity':
+    Creativity()        
 
 
 
-tru.run_dashboard(port=8500)
+tru.run_dashboard(port=8555)

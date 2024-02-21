@@ -282,4 +282,17 @@ div.stButton > button:is(:focus, :focus-visible, :active) {
       transition: linear;
     }
   }
-  
+  .back_img {
+    margin-left: -147px;
+    margin-top: -10px;
+    width: 100%;
+}
+.Title{
+    margin-left: 341px;
+    margin-top: -214px;
+    position: absolute;
+    font-weight: 100px;
+    font-size: 100px;
+    width: 544px;
+    color: white;
+}

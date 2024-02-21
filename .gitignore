@@ -2,6 +2,8 @@
 default.sqlite
 venv/
 .venv/
+env/
+
 helpers/__init__.py
 helpers/__pycache__/
 speech.mp3

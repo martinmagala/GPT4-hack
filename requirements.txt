@@ -1,3 +1,9 @@
 streamlit
 trulens_eval 
 langchain
+openai 
+requests
+Pillow
+streamlit_antd_components
+streamlit_drawable_canvas
+svgpathtools
