@@ -2,6 +2,8 @@ import streamlit as st
 from langchain.chat_models import ChatOpenAI
 from langchain.prompts.chat import ChatPromptTemplate, SystemMessagePromptTemplate, HumanMessagePromptTemplate
 from langchain.chains import LLMChain
+import os
+os.environ["x-portkey-api-key"] = st.secrets["x-portkey-api-key"]
 
 
 def get_quiz_data(text, openai_api_key):
@@ -36,7 +38,13 @@ def get_quiz_data(text, openai_api_key):
             [system_message_prompt, human_message_prompt]
         )
         chain = LLMChain(
-            llm=ChatOpenAI(openai_api_key=openai_api_key),
+            llm=ChatOpenAI(openai_api_key=openai_api_key,
+    base_url="https://api.portkey.ai/v1", ## Point to Portkey's gateway URL
+    default_headers= {
+        "x-portkey-api-key": st.secrets["x-portkey-api-key"],
+        "x-portkey-provider": "openai",
+        "Content-Type": "application/json"
+    }),
             prompt=chat_prompt,
         )
         return chain.run(text)
