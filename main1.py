@@ -8,7 +8,6 @@ from trulens_eval import TruChain, Feedback, OpenAI, Huggingface, Tru
 import streamlit as st
 from helpers.openai_utils import get_quiz_data
 from helpers.quiz_utils import string_to_list, get_randomized_options
-from gtts import gTTS  # new import
 import base64
 from pathlib import Path
 from openai import OpenAI as OP

@@ -27,9 +27,11 @@ import pandas as pd
 from streamlit_drawable_canvas import st_canvas
 from svgpathtools import parse_path
 import io
+from pinecone import Pinecone
 
 
-
+pc = Pinecone(api_key="eee55b9a-6754-4a5b-8336-9122b7361457")
+index = pc.Index("storyfy")
 hugs = Huggingface()
 openai = OpenAI()
 vopenai = OP(
@@ -114,6 +116,55 @@ def home_page():
         # st.image(f'data:image/png;base64,{img_back}', use_column_width=False)
         st.markdown(f"""<img class="back_img"  src="data:image/png;base64,{img_back}" alt="Frozen Image">""",unsafe_allow_html=True)
     st.markdown("""<h1 class="Title">Welcome To CogniSmile</h1>""",unsafe_allow_html=True)
+def generate_image(prompt):
+    try:
+        print("\n" + "="*50 + "\nFinal Prompt Sent to DALL-E 3:\n" + "="*50)
+        print(prompt)
+        response = vopenai.images.generate(
+            model="dall-e-3",
+            prompt=prompt,
+            size="1024x1024",
+            quality="standard",
+            response_format="b64_json",
+            n=1,
+        )
+        
+        if response:
+            b64_data = response.data[0].b64_json
+            # revised_prompt = response.data[0].revised_prompt
+            st.session_state['b64_image'] = b64_data  # Store in session for display
+            return b64_data
+    except Exception as e:
+        st.error(f"Error generating image: {e}")
+        return None
+
+with open('style.css') as f:
+        st.markdown('<style>{}</style>'.format(f.read()), unsafe_allow_html=True)
+ # Display HTML content
+st.markdown("""
+    <div class="area" >
+        <ul class="circles">
+            <li></li>
+            <li></li>
+            <li></li>
+            <li></li>
+            <li></li>
+            <li></li>
+            <li></li>
+            <li></li>
+            <li></li>
+            <li></li>
+        </ul>
+                
+    </div >
+    """, unsafe_allow_html=True)
+
+
+# Define your page functions
+def home_page():
+    st.session_state['b64_image'] =""
+    st.title("Home Page")
+    st.write("Welcome to the home page!") 
 
 
 
@@ -139,51 +190,72 @@ def Genarate_story():
         "Trustworthiness"
     ])
 
-    # Build LLM chain
-    template = """Write a creative, engaging story that brings the scene to life. Describe the characters, setting, and actions in a way that would captivate a young audience the story must not exceed 200 words and contain these values """+' '.join(selected_values) +"""
-            
-            Human: {human_input}
-            Chatbot:"""
-    prompt = PromptTemplate(
-        input_variables=[ "human_input"], template=template
-    )
-    
-    llm = ChatOpenAI(model_name="gpt-3.5-turbo", api_key=st.secrets["OPENAI_API_KEY"],
-    base_url="https://api.portkey.ai/v1", ## Point to Portkey's gateway URL
-    default_headers= {
-        "x-portkey-api-key": st.secrets["x-portkey-api-key"],
-        "x-portkey-provider": "openai",
-        "Content-Type": "application/json"
-    })
-    chain = LLMChain(llm=llm, prompt=prompt, verbose=True)
-
-
-
-    # Question/answer relevance between overall question and answer.
-    f_relevance = Feedback(openai.relevance).on_input_output()
-
-    # Moderation metrics on output
-    f_hate = Feedback(openai.moderation_hate).on_output()
-    f_violent = Feedback(openai.moderation_violence, higher_is_better=False).on_output()
-    f_selfharm = Feedback(openai.moderation_selfharm, higher_is_better=False).on_output()
-    f_maliciousness = Feedback(openai.maliciousness_with_cot_reasons, higher_is_better=False).on_output()
-
-    # TruLens Eval chain recorder
-    chain_recorder = TruChain(
-        chain, app_id="GPT4-story", feedbacks=[f_relevance, f_hate, f_violent, f_selfharm, f_maliciousness]
-    )
-
 
     st.markdown('''<div class="pos_h1"><h1>Story Comprehension</h1></div>''',unsafe_allow_html=True)
     if "messages" not in st.session_state:
         st.session_state.messages = []
     prompt = st.text_input("Something to add (optional)?")
+    prompt_image = prompt
+    res = vopenai.embeddings.create(
+    input=prompt,
+    model="text-embedding-ada-002"
+    )
+    
+    xq = res.data[0].embedding
+    res = index.query(vector=xq, top_k=1, include_metadata=True)
+    # get list of retrieved text
+    contexts = [item['metadata']['text'] for item in res['matches']]
+    augmented_query = prompt + "\n\n---\n\n".join(contexts)+"\n\n-----\n\n"
+    
+    template = """Write a creative, engaging story that brings the scene to life. Describe the characters, setting, and actions in a way that would captivate a young audience the story must not exceed 150 words and contain these values 
+            """ + ' '.join(selected_values) + """" and the reference is this if you don  find generetae on your own  """ + ''.join(augmented_query) + """"
+            Human: {human_input}
+            Chatbot:"""
+            
+    template_without_augmented_query = """Write a creative, engaging story that brings the scene to life  of """+ prompt_image +""". Describe the characters, setting, and actions in a way that would captivate a young audience the story must not exceed 200 words and contain these values 
+            """ + ' '.join(selected_values) + """"
+            Human: {human_input}
+            Chatbot:"""
+    prompt = PromptTemplate(
+    input_variables=[ "human_input"], template=template
+    )
+    
+    template_Image= """generate an image for Kids that brings the scene to life  of """+ prompt_image +"""In cartoonish way and that captivates kids"""
+    
+    prompt_without_augmented_query = PromptTemplate(
+    input_variables=[ "human_input"], template=template_without_augmented_query
+    )
+    
+    
+    
+    pineconereturn = ''.join(augmented_query)
+    llm = ChatOpenAI(model_name="gpt-4")
+    if(str.lower(prompt_image) in pineconereturn):
+        chain = LLMChain(llm=llm, prompt=prompt, verbose=True)
+    else :
+        chain = LLMChain(llm=llm, prompt=prompt_without_augmented_query, verbose=True)
+    #Question/answer relevance between overall question and answer.
+    f_relevance = Feedback(openai.relevance).on_input_output()
+    # Moderation metrics on output
+    f_hate = Feedback(openai.moderation_hate).on_output()
+    f_violent = Feedback(openai.moderation_violence, higher_is_better=False).on_output()
+    f_selfharm = Feedback(openai.moderation_selfharm, higher_is_better=False).on_output()
+    f_maliciousness = Feedback(openai.maliciousness_with_cot_reasons, higher_is_better=False).on_output()
+    chain_recorder = TruChain(
+        chain, app_id="First_chain", feedbacks=[f_relevance, f_hate, f_violent, f_selfharm, f_maliciousness]
+    )
+    # TruLens Eval chain recorder
+    chain_recorder = TruChain(
+        chain, app_id="GPT4-story", feedbacks=[f_relevance, f_hate, f_violent, f_selfharm, f_maliciousness]
+    )
+    
+    
     #st.markdown('<button class="btn-donate">Try The Magic</button>', unsafe_allow_html=True)
     if st.button("Try The Magic"):
         
         st.session_state.messages = []
         st.session_state.messages.append({"role": "user", "content": prompt})
-        b64_data = generate_image(prompt)
+        b64_data = generate_image(template_Image)
         with st.chat_message("assistant"):
             # Record with TruLens
             with chain_recorder as recording:
@@ -208,13 +280,121 @@ def Genarate_story():
             st.session_state.text =full_response
         st.session_state.messages.append(
             {"role": "assistant", "content": full_response})   
-        ##################################################################################
-        # generate_speech(st.session_state.text)
-        # st.success("Speech generated successfully!")
         
-        #  # Display the audio file to the user
-        # st.audio("speech.mp3", format="audio/mp3") 
-        ####################################################################################
+        generate_speech(st.session_state.text)
+        st.success("Speech generated successfully!")
+        
+         # Display the audio file to the user
+        st.audio("speech.mp3", format="audio/mp3") 
+        
+
+
+
+
+
+
+
+
+
+
+# def Genarate_story():
+
+#     if "text" not in st.session_state:
+#         st.session_state.text = ""
+
+#     if 'image_url' not in st.session_state:
+#             st.session_state.image_url = ""
+
+#     st.markdown('<link rel="stylesheet" href="style.css">', unsafe_allow_html=True)
+#     with open("./frozen.jpg", "rb") as img_file:
+#         img_data = base64.b64encode(img_file.read()).decode("utf-8")
+    
+
+   
+        
+#     selected_values = st.multiselect("Select values", [
+#         "Honesty", "Courage", "Perseverance", "Humility", "Compassion", "Generosity",
+#         "Gratitude", "Forgiveness", "Loyalty", "Patience", "Respect", "Responsibility",
+#         "Tolerance", "Justice", "Fairness", "Caring", "Kindness", "Optimism", "Wisdom",
+#         "Trustworthiness"
+#     ])
+
+#     # Build LLM chain
+#     template = """Write a creative, engaging story that brings the scene to life. Describe the characters, setting, and actions in a way that would captivate a young audience the story must not exceed 200 words and contain these values """+' '.join(selected_values) +"""
+            
+#             Human: {human_input}
+#             Chatbot:"""
+#     prompt = PromptTemplate(
+#         input_variables=[ "human_input"], template=template
+#     )
+    
+#     llm = ChatOpenAI(model_name="gpt-3.5-turbo", api_key=st.secrets["OPENAI_API_KEY"],
+#     base_url="https://api.portkey.ai/v1", ## Point to Portkey's gateway URL
+#     default_headers= {
+#         "x-portkey-api-key": st.secrets["x-portkey-api-key"],
+#         "x-portkey-provider": "openai",
+#         "Content-Type": "application/json"
+#     })
+#     chain = LLMChain(llm=llm, prompt=prompt, verbose=True)
+
+
+
+#     # Question/answer relevance between overall question and answer.
+#     f_relevance = Feedback(openai.relevance).on_input_output()
+
+#     # Moderation metrics on output
+#     f_hate = Feedback(openai.moderation_hate).on_output()
+#     f_violent = Feedback(openai.moderation_violence, higher_is_better=False).on_output()
+#     f_selfharm = Feedback(openai.moderation_selfharm, higher_is_better=False).on_output()
+#     f_maliciousness = Feedback(openai.maliciousness_with_cot_reasons, higher_is_better=False).on_output()
+
+#     # TruLens Eval chain recorder
+#     chain_recorder = TruChain(
+#         chain, app_id="GPT4-story", feedbacks=[f_relevance, f_hate, f_violent, f_selfharm, f_maliciousness]
+#     )
+
+
+#     st.markdown('''<div class="pos_h1"><h1>Story Comprehension</h1></div>''',unsafe_allow_html=True)
+#     if "messages" not in st.session_state:
+#         st.session_state.messages = []
+#     prompt = st.text_input("Something to add (optional)?")
+#     #st.markdown('<button class="btn-donate">Try The Magic</button>', unsafe_allow_html=True)
+#     if st.button("Try The Magic"):
+        
+#         st.session_state.messages = []
+#         st.session_state.messages.append({"role": "user", "content": prompt})
+#         b64_data = generate_image(prompt)
+#         with st.chat_message("assistant"):
+#             # Record with TruLens
+#             with chain_recorder as recording:
+#                 full_response = chain.run(prompt)
+#             st.markdown(
+#         f"""
+        
+#         <div class="styled-div">
+#             <div class="styled-title">
+#                 <h1>The Story</h1>  
+#             </div>
+#             <img class="styled-img" src="data:image/jpeg;base64,{b64_data}" alt="Frozen Image">
+#             <div class="styled-p">
+#                 {full_response}
+#             </div> 
+#         </div>
+           
+           
+#         """,
+#         unsafe_allow_html=True
+#     )
+#             st.session_state.text =full_response
+#         st.session_state.messages.append(
+#             {"role": "assistant", "content": full_response})   
+#         ##################################################################################
+#         # generate_speech(st.session_state.text)
+#         # st.success("Speech generated successfully!")
+        
+#         #  # Display the audio file to the user
+#         # st.audio("speech.mp3", format="audio/mp3") 
+#         ####################################################################################
 def Quiz_page():
     if 'text' not in st.session_state:
                 st.session_state.text = ""
