@@ -1,3 +1,6 @@
 streamlit
 trulens_eval 
 langchain
+openai
+requests
+Pillow

@@ -8,19 +8,35 @@ from trulens_eval import TruChain, Feedback, OpenAI, Huggingface, Tru
 import streamlit as st
 from helpers.openai_utils import get_quiz_data
 from helpers.quiz_utils import string_to_list, get_randomized_options
-from gtts import gTTS  # new import
 import base64
 from pathlib import Path
 from openai import OpenAI as OP
 
 hugs = Huggingface()
-openai = OpenAI()
-vopenai = OP()
+
 tru = Tru()
 
 # Load environment variables from .streamlit/secrets.toml
 os.environ["OPENAI_API_KEY"] = st.secrets["OPENAI_API_KEY"]
-
+os.environ["x-portkey-api-key"] = st.secrets["x-portkey-api-key"]
+vopenai = OP(
+    api_key=st.secrets["OPENAI_API_KEY"],
+    base_url="https://api.portkey.ai/v1", ## Point to Portkey's gateway URL
+    default_headers= {
+        "x-portkey-api-key": st.secrets["x-portkey-api-key"],
+        "x-portkey-provider": "openai",
+        "Content-Type": "application/json"
+    }
+)
+openai = OpenAI(
+    api_key=st.secrets["OPENAI_API_KEY"],
+    base_url="https://api.portkey.ai/v1", ## Point to Portkey's gateway URL
+    default_headers= {
+        "x-portkey-api-key": st.secrets["x-portkey-api-key"],
+        "x-portkey-provider": "openai",
+        "Content-Type": "application/json"
+    }
+)
 
 def generate_speech(input_text):
     speech_file_path = Path("speech.mp3")
@@ -39,8 +55,7 @@ st.set_page_config(
         initial_sidebar_state="collapsed"
     )
 def generate_image(prompt):
-    client = OP()
-    response = client.images.generate(
+    response = vopenai.images.generate(
         model="dall-e-2",
         prompt=prompt,
         size="1024x1024",
@@ -111,7 +126,11 @@ def Genarate_story():
         input_variables=[ "human_input"], template=template
     )
     
-    llm = ChatOpenAI(model_name="gpt-3.5-turbo")
+    llm = ChatOpenAI(model_name="gpt-3.5-turbo" ,base_url="https://api.portkey.ai/v1", ## Point to Portkey's gateway URL
+    default_headers= {
+        "x-portkey-api-key": st.secrets["x-portkey-api-key"],
+        "x-portkey-provider": "openai",
+        "Content-Type": "application/json"})
     chain = LLMChain(llm=llm, prompt=prompt, verbose=True)
 
 
@@ -278,4 +297,4 @@ selected_page = st.sidebar.radio("Navigation", list(pages.keys()))
 pages[selected_page]()
 
 
-tru.run_dashboard(port=8500)
+tru.run_dashboard() #port=8500
