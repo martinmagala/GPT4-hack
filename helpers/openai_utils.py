@@ -2,6 +2,8 @@ import streamlit as st
 from langchain.chat_models import ChatOpenAI
 from langchain.prompts.chat import ChatPromptTemplate, SystemMessagePromptTemplate, HumanMessagePromptTemplate
 from langchain.chains import LLMChain
+import os
+os.environ["x-portkey-api-key"] = st.secrets["x-portkey-api-key"]
 
 
 def get_quiz_data(text, openai_api_key):
