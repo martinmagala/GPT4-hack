@@ -41,6 +41,7 @@ Interactive engagement for creativity.
 - ADA-002
 - tts-1
 - Portkey
+- Pinecone
 ## 🔧 Dependencies and Installation
 ----------------------------
  please follow these steps to launch the app on your local machine:
