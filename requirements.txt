@@ -7,3 +7,4 @@ Pillow
 streamlit_antd_components
 streamlit_drawable_canvas
 svgpathtools
+pinecone-client
