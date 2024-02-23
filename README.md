@@ -69,8 +69,8 @@ Interactive engagement for creativity.
 
     ```plaintext
     OPENAI_API_KEY=your_secret_api_key
-    x-portkey-api-key =  "e1GCV2ndMKqFDmkJ9LGbf38JTRg="
-    pinecon-api-key="eee55b9a-6754-4a5b-8336-9122b7361457"
+    x-portkey-api-key =  " "
+    pinecon-api-key=" "
     ```
 
 6. Run the website:
