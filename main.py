@@ -338,6 +338,8 @@ def Creativity():
     if 'button_id' not in st.session_state:
             st.session_state.button_id = ""
     button_id = st.session_state["button_id"]
+    if 'text' not in st.session_state:
+                st.session_state.text = ""
     
     def png_export():
         try:
@@ -604,6 +606,7 @@ def Creativity():
             base64_image = download_and_encode_image(st.session_state['image_input'])
             original_description = get_image_analysis_streamlit(base64_image)
             st.session_state['original_description'] = original_description
+            st.session_state.text=st.session_state['original_description']
             st.session_state['last_image_input'] = st.session_state['image_input']
             st.session_state['modification'] = ""  # Reset modification input for new image
 
