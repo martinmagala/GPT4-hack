@@ -418,7 +418,7 @@ def Creativity():
 
         data = st_canvas(update_streamlit=True, key="png_export",drawing_mode=drawing_mode,
                point_display_radius=point_display_radius if drawing_mode == "point" else 0,stroke_color=stroke_color,
-               background_color=bg_color,stroke_width=stroke_width,height=400,width=800)
+               background_color=bg_color,stroke_width=stroke_width,height=400,width=705)
         if data is not None and data.image_data is not None:
             img_data = data.image_data
 
