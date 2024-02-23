@@ -83,7 +83,7 @@ Create your application from scratch and improve the output with TruLens Evals! 
 
 ## 🚀 How to Get Started
 
-To explore JOBEASE.AI and its functionalities:
+To explore CogniSmile and its functionalities:
 1. Clone the repository.
 2. Install necessary dependencies .
 3. Follow instructions in the documentation to run the platform locally  .
