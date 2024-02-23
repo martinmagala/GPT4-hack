@@ -29,16 +29,50 @@ from svgpathtools import parse_path
 import io
 from pinecone import Pinecone
 
+
+st.set_page_config(
+        page_title="Mediterranean AI",
+        page_icon="🧠",
+        layout="centered",
+        initial_sidebar_state="collapsed"
+    )
+
+
+
 pinecon_api_key = st.secrets["pinecon-api-key"]
 pc = Pinecone(api_key=pinecon_api_key)
 index = pc.Index("storyfy")
 
 
+
+
+##############
+# Sidebar for API key input
+
+if not st.secrets["OPENAI_API_KEY"]:
+    api_key = st.sidebar.text_input("Enter your API key", type="password") 
+else:
+ api_key=st.secrets["OPENAI_API_KEY"] 
+
+# Initialize the OpenAI client with the API Key provided by the user or from the environment
+client = OP(api_key=api_key, ## Point to Portkey's gateway URL
+    default_headers= {
+        "x-portkey-api-key": st.secrets["x-portkey-api-key"],
+        "x-portkey-provider": "openai",
+        "Content-Type": "application/json"
+    })
+##############
+
 hugs = Huggingface()
-openai = OpenAI()
+openai = OpenAI( api_key=api_key,## Point to Portkey's gateway URL
+    default_headers= {
+        "x-portkey-api-key": st.secrets["x-portkey-api-key"],
+        "x-portkey-provider": "openai",
+        "Content-Type": "application/json"
+    })
 
 vopenai = OP(
-    api_key=st.secrets["OPENAI_API_KEY"],
+    api_key=api_key,
     base_url="https://api.portkey.ai/v1", ## Point to Portkey's gateway URL
     default_headers= {
         "x-portkey-api-key": st.secrets["x-portkey-api-key"],
@@ -49,7 +83,7 @@ vopenai = OP(
 tru = Tru()
 
 # Load environment variables from .streamlit/secrets.toml
-os.environ["OPENAI_API_KEY"] = st.secrets["OPENAI_API_KEY"]
+os.environ["OPENAI_API_KEY"] = api_key
 
 
 def generate_speech(input_text):
@@ -62,12 +96,7 @@ def generate_speech(input_text):
     response.stream_to_file(speech_file_path)
 
 
-st.set_page_config(
-        page_title="Mediterranean AI",
-        page_icon="🧠",
-        layout="centered",
-        initial_sidebar_state="collapsed"
-    )
+
 def generate_image(prompt):
     try:
         print("\n" + "="*50 + "\nFinal Prompt Sent to DALL-E 3:\n" + "="*50)
@@ -233,7 +262,7 @@ def Quiz_page():
     if 'text' not in st.session_state:
                 st.session_state.text = ""
     if st.session_state.text != "":
-        OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
+        OPENAI_API_KEY = api_key
     
         
         with st.form("user_input"):
@@ -325,15 +354,7 @@ def contact_page():
 
     
 def Creativity():
-    api_key=st.secrets["OPENAI_API_KEY"]
-    # Sidebar for API key input
-    # api_key = st.sidebar.text_input("Enter your API key", type="password")
-    # if not api_key:
-    #     api_key = os.getenv("OPENAI_API_KEY") or "YOUR_API_KEY"
 
-    # Initialize the OpenAI client with the API Key provided by the user or from the environment
-    # client = OpenAI(api_key=api_key)
-    client = OP(api_key=os.getenv("OPENAI_API_KEY") or "YOUR_API_KEY")
     st.title('Draw and Tell Story Wizard')
     if 'button_id' not in st.session_state:
             st.session_state.button_id = ""
