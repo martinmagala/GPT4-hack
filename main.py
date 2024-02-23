@@ -486,7 +486,7 @@ def Creativity():
                 {
                     "role": "user",
                     "content": [
-                        {"type": "text", "text": "describe this image as a prompt for a text to generate a title of a story for kids according to this image"},
+                        {"type": "text", "text": "generate from this image a story for kids that brings the scene to life in a cartoonish way and that captivates kids make it mystical and magical. resembling a scene from a fantasy novel."},
                         {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}},
                     ],
                 }
@@ -524,7 +524,7 @@ def Creativity():
             response = client.images.generate(
                 model="dall-e-3",
                 prompt=prompt,
-                size="1792x1024",
+                size="1024x1024",
                 quality="standard",
                 response_format="b64_json",
                 n=1,
@@ -598,14 +598,14 @@ def Creativity():
     if 'modification' not in st.session_state:
         st.session_state['modification'] = ""
     
-    st.session_state['image_input'] = st.text_input("Enter the path to a local image or an image URL or Autofill:", value=st.session_state['image_input'] )
+    # st.session_state['image_input'] = st.text_input("Enter the path to a local image or an image URL or Autofill:", value=st.session_state['image_input'] )
 
     #Input for image URL or path with session state management
-    if st.button("Autofill"):
+    if st.button("Generate"):
             st.session_state['image_input'] = f"tmp/{button_id}.png"
     # if know this would work: st.session_state['text'] = autofill_value
-    else:
-        autofill_value = ""
+    # else:
+    #     autofill_value = ""
 
     # Process the image input if it's provided
     if st.session_state['image_input']:
@@ -618,8 +618,8 @@ def Creativity():
             st.session_state['modification'] = ""  # Reset modification input for new image
 
         # Show original description to the user
-        if 'original_description' in st.session_state:
-            st.write(f"Your Vision : {st.session_state['original_description']}")
+        # if 'original_description' in st.session_state:
+        #     st.write(f"Your Vision : {st.session_state['original_description']}")
         
         # Modification text input
         st.session_state['modification'] = st.text_input("Enter your description to add for Dalle here:", value=st.session_state['modification'])
@@ -635,8 +635,30 @@ def Creativity():
             b64_data, revised_prompt = generate_image_with_dalle_streamlit(modified_description)
             if b64_data:
                 img_data = base64.b64decode(b64_data)
-                st.image(img_data, caption="Generated Image", use_column_width=True)
+                # st.image(img_data, caption="Generated Image", use_column_width=True)
                 save_base64_image_streamlit(b64_data, st.session_state['image_input'])
+                st.markdown(
+                    f"""
+
+                    <div class="styled-div">
+                    <div class="styled-title">
+                    <h1>The Story</h1>  
+                    </div>
+                    <img class="styled-img" src="data:image/jpeg;base64,{b64_data}" alt="Frozen Image">
+                    <div class="styled-p">
+                    {st.session_state['original_description']}
+                    </div> 
+                    </div>
+
+
+                    """,
+                    unsafe_allow_html=True
+                    )
+                generate_speech(st.session_state['original_description'])
+                st.success("Speech generated successfully!")
+                
+                # Display the audio file to the user
+                st.audio("speech.mp3", format="audio/mp3")
             else:
                 st.error("Unable to generate modified image due to an error.")
 
@@ -691,4 +713,4 @@ elif st.session_state.current_tab == 'Creativity':
 
 
 
-tru.run_dashboard(port=8555)
+tru.run_dashboard()
